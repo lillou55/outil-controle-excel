@@ -99,9 +99,20 @@
             }
         });
 
+        // Fonction utilitaire pour calculer la longueur d'une cellule proprement
+        function getCellLength(cell) {
+            if (!cell || cell.value === null || cell.value === undefined) return 0;
+            let val = cell.value;
+            // Gestion des textes riches (richText) ou des résultats de formules
+            if (typeof val === 'object') {
+                if (val.richText) return val.richText.map(rt => rt.text).join('').length;
+                if (val.result !== undefined) return String(val.result).length;
+            }
+            return String(val).length;
+        }
+
         // --- FONCTION PRINCIPALE DE TRAITEMENT EXCEL ---
         async function traiterFichier(file) {
-            // Vérification de l'extension
             if (!file.name.endsWith('.xlsx')) {
                 afficherStatut("Erreur : Veuillez fournir un fichier .xlsx valide.", true);
                 return;
@@ -110,12 +121,10 @@
             afficherStatut("Analyse et ajout des règles en cours...", false);
 
             try {
-                // Lecture du fichier
                 const arrayBuffer = await file.arrayBuffer();
                 const workbook = new ExcelJS.Workbook();
                 await workbook.xlsx.load(arrayBuffer);
 
-                // Sélection de la première feuille (ou création si elle n'existe pas)
                 let worksheet = workbook.worksheets[0];
                 if (!worksheet) {
                     worksheet = workbook.addWorksheet('Feuille 1');
@@ -125,9 +134,9 @@
                 const plageB = 'B1:B10000';
                 const plageC = 'C1:C10000';
 
-                // --- FONCTION POUR GÉNÉRER LE STYLE D'ERREUR ---
-                // Ajoute le fond coloré, le texte en gras, et une bordure fine rouge
-                const getErrorStyle = (bgColorHex) => ({
+                // --- STYLES ---
+                // Style pour la Mise en Forme Conditionnelle
+                const getErrorStyleCF = (bgColorHex) => ({
                     font: { bold: true },
                     border: {
                         top: { style: 'thin', color: { argb: 'FFFF0000' } },
@@ -138,35 +147,47 @@
                     fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: bgColorHex } }
                 });
 
-                // 1. AJOUT DE LA MISE EN FORME CONDITIONNELLE
-                // Bleu ciel (FF87CEEB)
+                // Style Direct (appliqué manuellement pour contourner le bug d'exportation des bordures)
+                const applyStaticErrorStyle = (cell, bgColorHex) => {
+                    cell.font = { bold: true };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        bottom: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        left: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        right: { style: 'thin', color: { argb: 'FFFF0000' } }
+                    };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColorHex } }; // fgColor pour le style statique
+                };
+
+                // 1. APPLICATION DU STYLE STATIQUE SUR LES DONNÉES EXISTANTES
+                worksheet.eachRow((row, rowNumber) => {
+                    const cellA = row.getCell(1);
+                    if (getCellLength(cellA) > 80) applyStaticErrorStyle(cellA, 'FF87CEEB');
+
+                    const cellB = row.getCell(2);
+                    if (getCellLength(cellB) > 40) applyStaticErrorStyle(cellB, 'FFFFFFE0');
+
+                    const cellC = row.getCell(3);
+                    if (getCellLength(cellC) > 80) applyStaticErrorStyle(cellC, 'FFFFC0CB');
+                });
+
+                // 2. AJOUT DE LA MISE EN FORME CONDITIONNELLE (Pour les saisies futures)
                 worksheet.addConditionalFormatting({
                     ref: plageA,
-                    rules: [{
-                        type: 'expression', formulae: ['LEN(A1)>80'],
-                        style: getErrorStyle('FF87CEEB')
-                    }]
+                    rules: [{ type: 'expression', formulae: ['LEN(A1)>80'], style: getErrorStyleCF('FF87CEEB') }]
                 });
 
-                // Jaune ciel (FFFFFFE0)
                 worksheet.addConditionalFormatting({
                     ref: plageB,
-                    rules: [{
-                        type: 'expression', formulae: ['LEN(B1)>40'],
-                        style: getErrorStyle('FFFFFFE0')
-                    }]
+                    rules: [{ type: 'expression', formulae: ['LEN(B1)>40'], style: getErrorStyleCF('FFFFFFE0') }]
                 });
 
-                // Rouge ciel (FFFFC0CB)
                 worksheet.addConditionalFormatting({
                     ref: plageC,
-                    rules: [{
-                        type: 'expression', formulae: ['LEN(C1)>80'],
-                        style: getErrorStyle('FFFFC0CB')
-                    }]
+                    rules: [{ type: 'expression', formulae: ['LEN(C1)>80'], style: getErrorStyleCF('FFFFC0CB') }]
                 });
 
-                // 2. AJOUT DE LA VALIDATION DES DONNÉES (Messages d'erreur)
+                // 3. AJOUT DE LA VALIDATION DES DONNÉES (Messages d'erreur)
                 const configValidation = (maxLen, colName) => ({
                     type: 'textLength',
                     operator: 'lessThanOrEqual',
@@ -184,11 +205,10 @@
                 worksheet.dataValidations.add(plageB, configValidation(40, 'B'));
                 worksheet.dataValidations.add(plageC, configValidation(80, 'C'));
 
-                // 3. GÉNÉRATION DU NOUVEAU FICHIER
+                // 4. GÉNÉRATION DU NOUVEAU FICHIER
                 const buffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 
-                // Téléchargement automatique
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -198,7 +218,7 @@
                 window.URL.revokeObjectURL(url);
                 a.remove();
 
-                afficherStatut("Succès ! Le fichier a été régénéré et téléchargé.", false);
+                afficherStatut("Succès ! Le fichier a été régénéré avec les bordures et téléchargé.", false);
 
             } catch (error) {
                 console.error(error);
@@ -206,7 +226,6 @@
             }
         }
 
-        // Fonction utilitaire pour gérer les messages
         function afficherStatut(message, estErreur) {
             statusDiv.textContent = message;
             statusDiv.style.display = 'block';
