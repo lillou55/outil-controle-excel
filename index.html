@@ -3,75 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contrôle de Fichier Excel</title>
+    <title>Mise en conformité Excel | v1.2.0</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --bg-color: #F3F4F6;
+            --card-bg: #FFFFFF;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --success: #10B981;
+            --error: #EF4444;
+            --border-color: #E5E7EB;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 50px 20px;
+            padding: 40px 20px;
+            min-height: 100vh;
         }
+
+        /* --- HEADER --- */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
         h1 {
-            color: #2c3e50;
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), #8B5CF6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
         }
+
+        .version {
+            display: inline-block;
+            background-color: #E0E7FF;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* --- CONTAINERS --- */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        /* --- DROP ZONE --- */
         #drop-zone {
             width: 100%;
-            max-width: 500px;
-            height: 200px;
-            border: 3px dashed #3498db;
-            border-radius: 10px;
-            background-color: #eaf2f8;
+            height: 250px;
+            border: 2px dashed #CBD5E1;
+            border-radius: 12px;
+            background-color: #F8FAFC;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            text-align: center;
             cursor: pointer;
-            transition: background-color 0.3s, border-color 0.3s;
-            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
-        #drop-zone.dragover {
-            background-color: #d4e6f1;
-            border-color: #2980b9;
+
+        #drop-zone:hover, #drop-zone.dragover {
+            border-color: var(--primary);
+            background-color: #EEF2FF;
         }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            fill: #94A3B8;
+            margin-bottom: 15px;
+            transition: fill 0.3s ease;
+        }
+
+        #drop-zone:hover .upload-icon, #drop-zone.dragover .upload-icon {
+            fill: var(--primary);
+        }
+
         #drop-zone p {
-            font-size: 1.2rem;
-            color: #2980b9;
+            font-size: 1.1rem;
+            color: var(--text-muted);
             pointer-events: none;
+            text-align: center;
+            line-height: 1.5;
         }
+
+        #drop-zone strong {
+            color: var(--primary);
+        }
+
         #file-input {
             display: none;
         }
+
+        /* --- STATUS --- */
         #status {
             margin-top: 20px;
-            font-weight: bold;
-            color: #27ae60;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
             display: none;
+            animation: fadeIn 0.3s ease-in-out;
         }
-        .error {
-            color: #e74c3c !important;
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
+
+        .status-processing { background-color: #DBEAFE; color: #1E40AF; }
+        .status-success { background-color: #D1FAE5; color: #065F46; }
+        .status-error { background-color: #FEE2E2; color: #991B1B; }
+
+        /* --- HISTORY & STATS SECTION --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .dashboard-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+        }
+
+        .dashboard-card h2 {
+            font-size: 1.25rem;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* --- TABLE --- */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background-color: #F9FAFB;
+            padding: 12px 15px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 15px;
+            font-size: 0.95rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background-color: #F9FAFB; }
+
+        .empty-history {
+            text-align: center;
+            color: var(--text-muted);
+            font-style: italic;
+            padding: 20px;
+        }
+
     </style>
 </head>
 <body>
 
-    <h1>Mise en conformité Excel</h1>
-    <p>Glissez-déposez votre fichier Excel ici, ou cliquez pour le sélectionner sur votre PC.</p>
+    <header>
+        <div class="version">v1.2.0</div>
+        <h1>Mise en conformité Excel</h1>
+        <p>Générez des fichiers contrôlés avec styles et validations automatisés.</p>
+    </header>
 
-    <div id="drop-zone">
-        <p>Glisser un fichier Excel ici<br><br>ou<br><br>Cliquer pour parcourir</p>
+    <main class="container">
+        <div id="drop-zone">
+            <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.36 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+            </svg>
+            <p><strong>Cliquez pour parcourir</strong><br>ou glissez-déposez un fichier .xlsx ici</p>
+        </div>
+        <input type="file" id="file-input" accept=".xlsx" />
+
+        <div id="status"></div>
+    </main>
+
+    <div class="dashboard-grid">
+        
+        <div class="dashboard-card">
+            <h2>📈 Statistiques d'utilisation (7 derniers jours)</h2>
+            <canvas id="usageChart" height="100"></canvas>
+        </div>
+
+        <div class="dashboard-card">
+            <h2>🕒 Historique des traitements</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date & Heure</th>
+                            <th>Fichier d'origine</th>
+                            <th>Fichier généré</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
-    <input type="file" id="file-input" accept=".xlsx" />
-
-    <div id="status">Traitement en cours...</div>
 
     <script>
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const statusDiv = document.getElementById('status');
+        let usageChartInstance = null;
+
+        // --- GESTION DE L'HISTORIQUE ET STATS ---
+        function getHistory() {
+            return JSON.parse(localStorage.getItem('excel_processor_history')) || [];
+        }
+
+        function saveToHistory(originalName, newName) {
+            const history = getHistory();
+            const now = new Date();
+            
+            history.unshift({ // Ajoute au début du tableau
+                dateObj: now.toISOString(),
+                dateStr: now.toLocaleDateString('fr-FR'),
+                timeStr: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+                original: originalName,
+                generated: newName
+            });
+
+            // Garder seulement les 50 derniers pour ne pas surcharger le navigateur
+            if(history.length > 50) history.pop();
+            
+            localStorage.setItem('excel_processor_history', JSON.stringify(history));
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            const history = getHistory();
+            const tbody = document.getElementById('history-body');
+            
+            // 1. Mise à jour du tableau
+            if (history.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="empty-history">Aucun fichier traité pour le moment.</td></tr>`;
+            } else {
+                tbody.innerHTML = history.slice(0, 10).map(item => `
+                    <tr>
+                        <td><strong>${item.dateStr}</strong> à ${item.timeStr}</td>
+                        <td>${item.original}</td>
+                        <td><span style="color: var(--success); font-weight: 500;">${item.generated}</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            // 2. Mise à jour du graphique
+            updateChart(history);
+        }
+
+        function updateChart(history) {
+            const ctx = document.getElementById('usageChart').getContext('2d');
+            
+            // Grouper par date sur les 7 derniers jours
+            const stats = {};
+            for(let i=6; i>=0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                stats[d.toLocaleDateString('fr-FR')] = 0;
+            }
+
+            history.forEach(item => {
+                if(stats[item.dateStr] !== undefined) {
+                    stats[item.dateStr]++;
+                }
+            });
+
+            const labels = Object.keys(stats);
+            const data = Object.values(stats);
+
+            if (usageChartInstance) {
+                usageChartInstance.destroy(); // Détruire l'ancien graphique pour le redessiner
+            }
+
+            usageChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Fichiers traités',
+                        data: data,
+                        backgroundColor: '#8B5CF6',
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Initialisation du tableau de bord au chargement
+        updateDashboard();
 
         // --- GESTION DES ÉVÉNEMENTS DRAG & DROP ---
         dropZone.addEventListener('click', () => fileInput.click());
@@ -99,11 +388,9 @@
             }
         });
 
-        // Fonction utilitaire pour calculer la longueur d'une cellule proprement
         function getCellLength(cell) {
             if (!cell || cell.value === null || cell.value === undefined) return 0;
             let val = cell.value;
-            // Gestion des textes riches (richText) ou des résultats de formules
             if (typeof val === 'object') {
                 if (val.richText) return val.richText.map(rt => rt.text).join('').length;
                 if (val.result !== undefined) return String(val.result).length;
@@ -114,11 +401,11 @@
         // --- FONCTION PRINCIPALE DE TRAITEMENT EXCEL ---
         async function traiterFichier(file) {
             if (!file.name.endsWith('.xlsx')) {
-                afficherStatut("Erreur : Veuillez fournir un fichier .xlsx valide.", true);
+                afficherStatut("Erreur : Veuillez fournir un fichier .xlsx valide.", 'error');
                 return;
             }
 
-            afficherStatut("Analyse et ajout des règles en cours...", false);
+            afficherStatut("Analyse et ajout des règles en cours...", 'processing');
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
@@ -126,16 +413,12 @@
                 await workbook.xlsx.load(arrayBuffer);
 
                 let worksheet = workbook.worksheets[0];
-                if (!worksheet) {
-                    worksheet = workbook.addWorksheet('Feuille 1');
-                }
+                if (!worksheet) worksheet = workbook.addWorksheet('Feuille 1');
 
                 const plageA = 'A1:A10000';
                 const plageB = 'B1:B10000';
                 const plageC = 'C1:C10000';
 
-                // --- STYLES ---
-                // Style pour la Mise en Forme Conditionnelle
                 const getErrorStyleCF = (bgColorHex) => ({
                     font: { bold: true },
                     border: {
@@ -147,7 +430,6 @@
                     fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: bgColorHex } }
                 });
 
-                // Style Direct (appliqué manuellement pour contourner le bug d'exportation des bordures)
                 const applyStaticErrorStyle = (cell, bgColorHex) => {
                     cell.font = { bold: true };
                     cell.border = {
@@ -156,10 +438,9 @@
                         left: { style: 'thin', color: { argb: 'FFFF0000' } },
                         right: { style: 'thin', color: { argb: 'FFFF0000' } }
                     };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColorHex } }; // fgColor pour le style statique
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColorHex } };
                 };
 
-                // 1. APPLICATION DU STYLE STATIQUE SUR LES DONNÉES EXISTANTES
                 worksheet.eachRow((row, rowNumber) => {
                     const cellA = row.getCell(1);
                     if (getCellLength(cellA) > 80) applyStaticErrorStyle(cellA, 'FF87CEEB');
@@ -171,69 +452,53 @@
                     if (getCellLength(cellC) > 80) applyStaticErrorStyle(cellC, 'FFFFC0CB');
                 });
 
-                // 2. AJOUT DE LA MISE EN FORME CONDITIONNELLE (Pour les saisies futures)
-                worksheet.addConditionalFormatting({
-                    ref: plageA,
-                    rules: [{ type: 'expression', formulae: ['LEN(A1)>80'], style: getErrorStyleCF('FF87CEEB') }]
-                });
+                worksheet.addConditionalFormatting({ ref: plageA, rules: [{ type: 'expression', formulae: ['LEN(A1)>80'], style: getErrorStyleCF('FF87CEEB') }] });
+                worksheet.addConditionalFormatting({ ref: plageB, rules: [{ type: 'expression', formulae: ['LEN(B1)>40'], style: getErrorStyleCF('FFFFFFE0') }] });
+                worksheet.addConditionalFormatting({ ref: plageC, rules: [{ type: 'expression', formulae: ['LEN(C1)>80'], style: getErrorStyleCF('FFFFC0CB') }] });
 
-                worksheet.addConditionalFormatting({
-                    ref: plageB,
-                    rules: [{ type: 'expression', formulae: ['LEN(B1)>40'], style: getErrorStyleCF('FFFFFFE0') }]
-                });
-
-                worksheet.addConditionalFormatting({
-                    ref: plageC,
-                    rules: [{ type: 'expression', formulae: ['LEN(C1)>80'], style: getErrorStyleCF('FFFFC0CB') }]
-                });
-
-                // 3. AJOUT DE LA VALIDATION DES DONNÉES (Messages d'erreur)
                 const configValidation = (maxLen, colName) => ({
-                    type: 'textLength',
-                    operator: 'lessThanOrEqual',
-                    showErrorMessage: true,
-                    allowBlank: true,
-                    formulae: [maxLen],
-                    errorStyle: 'stop',
-                    errorTitle: 'Limite dépassée',
+                    type: 'textLength', operator: 'lessThanOrEqual', showErrorMessage: true, allowBlank: true,
+                    formulae: [maxLen], errorStyle: 'stop', errorTitle: 'Limite dépassée',
                     error: `Le contenu de la colonne ${colName} ne doit pas dépasser ${maxLen} caractères.`,
-                    promptTitle: `Info Colonne ${colName}`,
-                    prompt: `Maximum ${maxLen} caractères.`
+                    promptTitle: `Info Colonne ${colName}`, prompt: `Maximum ${maxLen} caractères.`
                 });
 
                 worksheet.dataValidations.add(plageA, configValidation(80, 'A'));
                 worksheet.dataValidations.add(plageB, configValidation(40, 'B'));
                 worksheet.dataValidations.add(plageC, configValidation(80, 'C'));
 
-                // 4. GÉNÉRATION DU NOUVEAU FICHIER
                 const buffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 
+                const newFileName = "Controle_" + file.name;
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = "Controle_" + file.name;
+                a.download = newFileName;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
                 a.remove();
 
-                afficherStatut("Succès ! Le fichier a été régénéré avec les bordures et téléchargé.", false);
+                afficherStatut("Succès ! Le fichier a été régénéré et téléchargé.", 'success');
+                
+                // Sauvegarde dans l'historique et mise à jour de l'UI
+                saveToHistory(file.name, newFileName);
+                
+                // Reset du input file pour permettre de reprendre le même fichier
+                fileInput.value = '';
 
             } catch (error) {
                 console.error(error);
-                afficherStatut("Une erreur est survenue lors du traitement du fichier.", true);
+                afficherStatut("Une erreur est survenue lors du traitement du fichier.", 'error');
             }
         }
 
-        function afficherStatut(message, estErreur) {
+        function afficherStatut(message, type) {
             statusDiv.textContent = message;
+            statusDiv.className = ''; // Reset classes
+            statusDiv.classList.add(`status-${type}`);
             statusDiv.style.display = 'block';
-            if (estErreur) {
-                statusDiv.classList.add('error');
-            } else {
-                statusDiv.classList.remove('error');
-            }
         }
     </script>
 </body>
