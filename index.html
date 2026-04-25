@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle de Fichier Excel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px 20px;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        #drop-zone {
+            width: 100%;
+            max-width: 500px;
+            height: 200px;
+            border: 3px dashed #3498db;
+            border-radius: 10px;
+            background-color: #eaf2f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s, border-color 0.3s;
+            margin-bottom: 20px;
+        }
+        #drop-zone.dragover {
+            background-color: #d4e6f1;
+            border-color: #2980b9;
+        }
+        #drop-zone p {
+            font-size: 1.2rem;
+            color: #2980b9;
+            pointer-events: none;
+        }
+        #file-input {
+            display: none;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #27ae60;
+            display: none;
+        }
+        .error {
+            color: #e74c3c !important;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Mise en conformité Excel</h1>
+    <p>Glissez-déposez votre fichier Excel ici, ou cliquez pour le sélectionner sur votre PC.</p>
+
+    <div id="drop-zone">
+        <p>Glisser un fichier Excel ici<br><br>ou<br><br>Cliquer pour parcourir</p>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx" />
+
+    <div id="status">Traitement en cours...</div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const statusDiv = document.getElementById('status');
+
+        // --- GESTION DES ÉVÉNEMENTS DRAG & DROP ---
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                traiterFichier(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                traiterFichier(e.target.files[0]);
+            }
+        });
+
+        // --- FONCTION PRINCIPALE DE TRAITEMENT EXCEL ---
+        async function traiterFichier(file) {
+            // Vérification de l'extension
+            if (!file.name.endsWith('.xlsx')) {
+                afficherStatut("Erreur : Veuillez fournir un fichier .xlsx valide.", true);
+                return;
+            }
+
+            afficherStatut("Analyse et ajout des règles en cours...", false);
+
+            try {
+                // Lecture du fichier
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(arrayBuffer);
+
+                // Sélection de la première feuille (ou création si elle n'existe pas)
+                let worksheet = workbook.worksheets[0];
+                if (!worksheet) {
+                    worksheet = workbook.addWorksheet('Feuille 1');
+                }
+
+                const plageA = 'A1:A10000';
+                const plageB = 'B1:B10000';
+                const plageC = 'C1:C10000';
+
+                // 1. AJOUT DE LA MISE EN FORME CONDITIONNELLE (Surlignage)
+                // Bleu ciel (FF87CEEB), Jaune ciel (FFFFFFE0), Rouge ciel (FFFFC0CB)
+                worksheet.addConditionalFormatting({
+                    ref: plageA,
+                    rules: [{
+                        type: 'expression', formulae: ['LEN(A1)>80'],
+                        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF87CEEB' } } }
+                    }]
+                });
+
+                worksheet.addConditionalFormatting({
+                    ref: plageB,
+                    rules: [{
+                        type: 'expression', formulae: ['LEN(B1)>40'],
+                        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFFFE0' } } }
+                    }]
+                });
+
+                worksheet.addConditionalFormatting({
+                    ref: plageC,
+                    rules: [{
+                        type: 'expression', formulae: ['LEN(C1)>80'],
+                        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC0CB' } } }
+                    }]
+                });
+
+                // 2. AJOUT DE LA VALIDATION DES DONNÉES (Messages d'erreur)
+                const configValidation = (maxLen, colName) => ({
+                    type: 'textLength',
+                    operator: 'lessThanOrEqual',
+                    showErrorMessage: true,
+                    allowBlank: true,
+                    formulae: [maxLen],
+                    errorStyle: 'stop',
+                    errorTitle: 'Limite dépassée',
+                    error: `Le contenu de la colonne ${colName} ne doit pas dépasser ${maxLen} caractères.`,
+                    promptTitle: `Info Colonne ${colName}`,
+                    prompt: `Maximum ${maxLen} caractères.`
+                });
+
+                worksheet.dataValidations.add(plageA, configValidation(80, 'A'));
+                worksheet.dataValidations.add(plageB, configValidation(40, 'B'));
+                worksheet.dataValidations.add(plageC, configValidation(80, 'C'));
+
+                // 3. GÉNÉRATION DU NOUVEAU FICHIER
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                
+                // Téléchargement automatique
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "Controle_" + file.name;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+                afficherStatut("Succès ! Le fichier a été régénéré et téléchargé.", false);
+
+            } catch (error) {
+                console.error(error);
+                afficherStatut("Une erreur est survenue lors du traitement du fichier.", true);
+            }
+        }
+
+        // Fonction utilitaire pour gérer les messages
+        function afficherStatut(message, estErreur) {
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            if (estErreur) {
+                statusDiv.classList.add('error');
+            } else {
+                statusDiv.classList.remove('error');
+            }
+        }
+    </script>
+</body>
+</html>
