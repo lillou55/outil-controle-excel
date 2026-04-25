@@ -125,29 +125,44 @@
                 const plageB = 'B1:B10000';
                 const plageC = 'C1:C10000';
 
-                // 1. AJOUT DE LA MISE EN FORME CONDITIONNELLE (Surlignage)
-                // Bleu ciel (FF87CEEB), Jaune ciel (FFFFFFE0), Rouge ciel (FFFFC0CB)
+                // --- FONCTION POUR GÉNÉRER LE STYLE D'ERREUR ---
+                // Ajoute le fond coloré, le texte en gras, et une bordure fine rouge
+                const getErrorStyle = (bgColorHex) => ({
+                    font: { bold: true },
+                    border: {
+                        top: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        bottom: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        left: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        right: { style: 'thin', color: { argb: 'FFFF0000' } }
+                    },
+                    fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: bgColorHex } }
+                });
+
+                // 1. AJOUT DE LA MISE EN FORME CONDITIONNELLE
+                // Bleu ciel (FF87CEEB)
                 worksheet.addConditionalFormatting({
                     ref: plageA,
                     rules: [{
                         type: 'expression', formulae: ['LEN(A1)>80'],
-                        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF87CEEB' } } }
+                        style: getErrorStyle('FF87CEEB')
                     }]
                 });
 
+                // Jaune ciel (FFFFFFE0)
                 worksheet.addConditionalFormatting({
                     ref: plageB,
                     rules: [{
                         type: 'expression', formulae: ['LEN(B1)>40'],
-                        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFFFE0' } } }
+                        style: getErrorStyle('FFFFFFE0')
                     }]
                 });
 
+                // Rouge ciel (FFFFC0CB)
                 worksheet.addConditionalFormatting({
                     ref: plageC,
                     rules: [{
                         type: 'expression', formulae: ['LEN(C1)>80'],
-                        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC0CB' } } }
+                        style: getErrorStyle('FFFFC0CB')
                     }]
                 });
 
