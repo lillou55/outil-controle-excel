@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mise en conformité Excel | v1.4.0</title>
+    <title>Mise en conformité Excel | v1.4.1</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -64,7 +64,7 @@
 <body>
 
     <header>
-        <div class="version">v1.4.0 - 100% Dynamique</div>
+        <div class="version">v1.4.1 - Tableau de bord étendu</div>
         <h1>Mise en conformité Excel</h1>
         <p>Générez des fichiers contrôlés avec styles, validations et bordures d'erreur automatisés.</p>
     </header>
@@ -89,7 +89,14 @@
             <h2>🕒 Historique</h2>
             <div style="overflow-x: auto;">
                 <table>
-                    <thead><tr><th>Date & Heure</th><th>Fichier d'origine</th><th>Statut</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Date & Heure</th>
+                            <th>Fichier d'origine</th>
+                            <th>Fichier généré</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
                     <tbody id="history-body"></tbody>
                 </table>
             </div>
@@ -103,17 +110,19 @@
         let usageChartInstance = null;
 
         // --- DASHBOARD & HISTORY ---
-        function getHistory() { return JSON.parse(localStorage.getItem('excel_history')) || []; }
-        function saveToHistory(originalName) {
+        function getHistory() { return JSON.parse(localStorage.getItem('excel_history_v2')) || []; }
+        
+        function saveToHistory(originalName, generatedName) {
             const history = getHistory();
             const now = new Date();
             history.unshift({
                 dateStr: now.toLocaleDateString('fr-FR'),
                 timeStr: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-                original: originalName
+                original: originalName,
+                generated: generatedName
             });
             if(history.length > 50) history.pop();
-            localStorage.setItem('excel_history', JSON.stringify(history));
+            localStorage.setItem('excel_history_v2', JSON.stringify(history));
             updateDashboard();
         }
 
@@ -121,8 +130,15 @@
             const history = getHistory();
             const tbody = document.getElementById('history-body');
             tbody.innerHTML = history.length === 0 
-                ? `<tr><td colspan="3" style="text-align:center; color:#6B7280;">Aucun fichier traité.</td></tr>`
-                : history.slice(0, 10).map(item => `<tr><td><strong>${item.dateStr}</strong> à ${item.timeStr}</td><td>${item.original}</td><td style="color:#10B981; font-weight:bold;">Succès</td></tr>`).join('');
+                ? `<tr><td colspan="4" style="text-align:center; color:#6B7280;">Aucun fichier traité.</td></tr>`
+                : history.slice(0, 10).map(item => `
+                    <tr>
+                        <td><strong>${item.dateStr}</strong> à ${item.timeStr}</td>
+                        <td>${item.original}</td>
+                        <td style="color:var(--primary); font-weight:500;">${item.generated || '-'}</td>
+                        <td style="color:#10B981; font-weight:bold;">Succès</td>
+                    </tr>
+                `).join('');
             
             const ctx = document.getElementById('usageChart').getContext('2d');
             const stats = {};
@@ -160,11 +176,6 @@
                 let worksheet = workbook.worksheets[0];
                 if (!worksheet) worksheet = workbook.addWorksheet('Feuille 1');
 
-                // --------------------------------------------------------
-                // MÉCANIQUE 100% DYNAMIQUE (Mise en Forme Conditionnelle)
-                // --------------------------------------------------------
-                // Tout est géré par cette règle. Si la condition devient fausse, 
-                // Excel désactive automatiquement ce style.
                 const getErrorStyleCF = (bgColorHex) => ({
                     font: { bold: true },
                     border: {
@@ -176,12 +187,10 @@
                     fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: bgColorHex } }
                 });
 
-                // On applique les règles dynamiques sur toute la hauteur des colonnes
                 worksheet.addConditionalFormatting({ ref: 'A1:A10000', rules: [{ type: 'expression', formulae: ['LEN(A1)>80'], style: getErrorStyleCF('FF87CEEB') }] });
                 worksheet.addConditionalFormatting({ ref: 'B1:B10000', rules: [{ type: 'expression', formulae: ['LEN(B1)>40'], style: getErrorStyleCF('FFFFFFE0') }] });
                 worksheet.addConditionalFormatting({ ref: 'C1:C10000', rules: [{ type: 'expression', formulae: ['LEN(C1)>80'], style: getErrorStyleCF('FFFFC0CB') }] });
 
-                // Validation des données (Les Pop-ups)
                 const configVal = (maxLen, colName) => ({
                     type: 'textLength', operator: 'lessThanOrEqual', showErrorMessage: true, allowBlank: true,
                     formulae: [maxLen], errorStyle: 'stop', errorTitle: 'Limite dépassée',
@@ -191,18 +200,21 @@
                 worksheet.dataValidations.add('B1:B10000', configVal(40, 'B'));
                 worksheet.dataValidations.add('C1:C10000', configVal(80, 'C'));
 
-                // Génération et téléchargement
                 const buffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 
+                const newFileName = "Controle_" + file.name;
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url; a.download = "Controle_" + file.name;
+                a.href = url; a.download = newFileName;
                 document.body.appendChild(a); a.click();
                 window.URL.revokeObjectURL(url); a.remove();
 
                 afficherStatut("Succès ! Fichier généré (100% dynamique).", 'success');
-                saveToHistory(file.name);
+                
+                // Enregistre l'historique avec le nom d'origine ET le nouveau nom
+                saveToHistory(file.name, newFileName);
+                
                 fileInput.value = '';
 
             } catch (error) {
