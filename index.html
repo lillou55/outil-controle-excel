@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mise en conformité Excel | v1.3.1</title>
+    <title>Mise en conformité Excel | v1.4.0</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -64,7 +64,7 @@
 <body>
 
     <header>
-        <div class="version">v1.3.1 - Correction des styles partagés</div>
+        <div class="version">v1.4.0 - 100% Dynamique</div>
         <h1>Mise en conformité Excel</h1>
         <p>Générez des fichiers contrôlés avec styles, validations et bordures d'erreur automatisés.</p>
     </header>
@@ -147,18 +147,6 @@
         dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files.length) traiterFichier(e.dataTransfer.files[0]); });
         fileInput.addEventListener('change', (e) => { if (e.target.files.length) traiterFichier(e.target.files[0]); });
 
-        function getCellLength(cell) {
-            if (!cell || cell.value === null || cell.value === undefined) return 0;
-            let val = cell.value;
-            if (typeof val === 'object') {
-                if (val.richText) return val.richText.map(rt => rt.text).join('').length;
-                if (val.result !== undefined) return val.result === null ? 0 : String(val.result).length;
-                if (val.text) return String(val.text).length;
-                return 0;
-            }
-            return String(val).length;
-        }
-
         // --- MOTEUR EXCEL ---
         async function traiterFichier(file) {
             if (!file.name.endsWith('.xlsx')) return afficherStatut("Erreur : Fichier .xlsx invalide.", 'error');
@@ -172,48 +160,28 @@
                 let worksheet = workbook.worksheets[0];
                 if (!worksheet) worksheet = workbook.addWorksheet('Feuille 1');
 
+                // --------------------------------------------------------
+                // MÉCANIQUE 100% DYNAMIQUE (Mise en Forme Conditionnelle)
+                // --------------------------------------------------------
+                // Tout est géré par cette règle. Si la condition devient fausse, 
+                // Excel désactive automatiquement ce style.
                 const getErrorStyleCF = (bgColorHex) => ({
                     font: { bold: true },
+                    border: {
+                        top: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        bottom: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        left: { style: 'thin', color: { argb: 'FFFF0000' } },
+                        right: { style: 'thin', color: { argb: 'FFFF0000' } }
+                    },
                     fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: bgColorHex } }
                 });
 
-                // --------------------------------------------------------
-                // LA CORRECTION EST ICI : on CLONE l'objet style pour 
-                // le détacher des autres cellules du fichier.
-                // --------------------------------------------------------
-                const applyStaticErrorStyle = (cell, bgColorHex) => {
-                    const newStyle = { ...cell.style }; // Clonage du style parent
-                    
-                    newStyle.font = { ...(cell.style.font || {}), bold: true };
-                    
-                    newStyle.border = { 
-                        ...(cell.style.border || {}),
-                        top: { style: 'medium', color: { argb: 'FFFF0000' } },
-                        bottom: { style: 'medium', color: { argb: 'FFFF0000' } },
-                        left: { style: 'medium', color: { argb: 'FFFF0000' } },
-                        right: { style: 'medium', color: { argb: 'FFFF0000' } }
-                    };
-                    
-                    newStyle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColorHex } };
-                    
-                    cell.style = newStyle; // On assigne le style unique
-                };
-
-                worksheet.eachRow((row) => {
-                    const cellA = row.getCell(1);
-                    if (getCellLength(cellA) > 80) applyStaticErrorStyle(cellA, 'FF87CEEB');
-
-                    const cellB = row.getCell(2);
-                    if (getCellLength(cellB) > 40) applyStaticErrorStyle(cellB, 'FFFFFFE0');
-
-                    const cellC = row.getCell(3);
-                    if (getCellLength(cellC) > 80) applyStaticErrorStyle(cellC, 'FFFFC0CB');
-                });
-
+                // On applique les règles dynamiques sur toute la hauteur des colonnes
                 worksheet.addConditionalFormatting({ ref: 'A1:A10000', rules: [{ type: 'expression', formulae: ['LEN(A1)>80'], style: getErrorStyleCF('FF87CEEB') }] });
                 worksheet.addConditionalFormatting({ ref: 'B1:B10000', rules: [{ type: 'expression', formulae: ['LEN(B1)>40'], style: getErrorStyleCF('FFFFFFE0') }] });
                 worksheet.addConditionalFormatting({ ref: 'C1:C10000', rules: [{ type: 'expression', formulae: ['LEN(C1)>80'], style: getErrorStyleCF('FFFFC0CB') }] });
 
+                // Validation des données (Les Pop-ups)
                 const configVal = (maxLen, colName) => ({
                     type: 'textLength', operator: 'lessThanOrEqual', showErrorMessage: true, allowBlank: true,
                     formulae: [maxLen], errorStyle: 'stop', errorTitle: 'Limite dépassée',
@@ -223,6 +191,7 @@
                 worksheet.dataValidations.add('B1:B10000', configVal(40, 'B'));
                 worksheet.dataValidations.add('C1:C10000', configVal(80, 'C'));
 
+                // Génération et téléchargement
                 const buffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 
@@ -232,7 +201,7 @@
                 document.body.appendChild(a); a.click();
                 window.URL.revokeObjectURL(url); a.remove();
 
-                afficherStatut("Succès ! Fichier généré avec les bonnes bordures.", 'success');
+                afficherStatut("Succès ! Fichier généré (100% dynamique).", 'success');
                 saveToHistory(file.name);
                 fileInput.value = '';
 
