@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mise en conformité Excel | v1.3.0</title>
+    <title>Mise en conformité Excel | v1.3.1</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -64,7 +64,7 @@
 <body>
 
     <header>
-        <div class="version">v1.3.0 - Moteur Corrigé</div>
+        <div class="version">v1.3.1 - Correction des styles partagés</div>
         <h1>Mise en conformité Excel</h1>
         <p>Générez des fichiers contrôlés avec styles, validations et bordures d'erreur automatisés.</p>
     </header>
@@ -172,28 +172,33 @@
                 let worksheet = workbook.worksheets[0];
                 if (!worksheet) worksheet = workbook.addWorksheet('Feuille 1');
 
-                // 1. STYLE SANS BORDURES POUR LA MISE EN FORME CONDITIONNELLE
-                // C'est ce qui causait le bug du fond rose sur tout le document !
                 const getErrorStyleCF = (bgColorHex) => ({
                     font: { bold: true },
                     fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: bgColorHex } }
                 });
 
-                // 2. STYLE AVEC BORDURES ROUGES APPLIQUÉ EN DUR
+                // --------------------------------------------------------
+                // LA CORRECTION EST ICI : on CLONE l'objet style pour 
+                // le détacher des autres cellules du fichier.
+                // --------------------------------------------------------
                 const applyStaticErrorStyle = (cell, bgColorHex) => {
-                    cell.font = Object.assign({}, cell.font || {}, { bold: true });
-                    // Ajout d'une bordure moyenne rouge
-                    cell.border = Object.assign({}, cell.border || {}, {
+                    const newStyle = { ...cell.style }; // Clonage du style parent
+                    
+                    newStyle.font = { ...(cell.style.font || {}), bold: true };
+                    
+                    newStyle.border = { 
+                        ...(cell.style.border || {}),
                         top: { style: 'medium', color: { argb: 'FFFF0000' } },
                         bottom: { style: 'medium', color: { argb: 'FFFF0000' } },
                         left: { style: 'medium', color: { argb: 'FFFF0000' } },
                         right: { style: 'medium', color: { argb: 'FFFF0000' } }
-                    });
-                    // On utilise fgColor pour colorer le fond de la cellule statique
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColorHex } };
+                    };
+                    
+                    newStyle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColorHex } };
+                    
+                    cell.style = newStyle; // On assigne le style unique
                 };
 
-                // Application des styles statiques sur les données existantes
                 worksheet.eachRow((row) => {
                     const cellA = row.getCell(1);
                     if (getCellLength(cellA) > 80) applyStaticErrorStyle(cellA, 'FF87CEEB');
@@ -205,12 +210,10 @@
                     if (getCellLength(cellC) > 80) applyStaticErrorStyle(cellC, 'FFFFC0CB');
                 });
 
-                // Ajout des règles conditionnelles (pour les futures frappes de l'utilisateur)
                 worksheet.addConditionalFormatting({ ref: 'A1:A10000', rules: [{ type: 'expression', formulae: ['LEN(A1)>80'], style: getErrorStyleCF('FF87CEEB') }] });
                 worksheet.addConditionalFormatting({ ref: 'B1:B10000', rules: [{ type: 'expression', formulae: ['LEN(B1)>40'], style: getErrorStyleCF('FFFFFFE0') }] });
                 worksheet.addConditionalFormatting({ ref: 'C1:C10000', rules: [{ type: 'expression', formulae: ['LEN(C1)>80'], style: getErrorStyleCF('FFFFC0CB') }] });
 
-                // Validation des données
                 const configVal = (maxLen, colName) => ({
                     type: 'textLength', operator: 'lessThanOrEqual', showErrorMessage: true, allowBlank: true,
                     formulae: [maxLen], errorStyle: 'stop', errorTitle: 'Limite dépassée',
@@ -220,7 +223,6 @@
                 worksheet.dataValidations.add('B1:B10000', configVal(40, 'B'));
                 worksheet.dataValidations.add('C1:C10000', configVal(80, 'C'));
 
-                // Génération et téléchargement
                 const buffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 
