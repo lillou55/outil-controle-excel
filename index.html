@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mise en conformité Excel | v1.2.1</title>
+    <title>Mise en conformité Excel | v1.3.0</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,216 +11,62 @@
     <style>
         :root {
             --primary: #4F46E5;
-            --primary-hover: #4338CA;
             --bg-color: #F3F4F6;
             --card-bg: #FFFFFF;
             --text-main: #1F2937;
             --text-muted: #6B7280;
             --success: #10B981;
-            --error: #EF4444;
             --border-color: #E5E7EB;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 20px;
-            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 40px 20px; min-height: 100vh;
         }
 
-        /* --- HEADER --- */
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { font-size: 2.5rem; font-weight: 800; color: var(--primary); margin-bottom: 10px; }
+        .version { display: inline-block; background-color: #E0E7FF; color: var(--primary); padding: 4px 12px; border-radius: 20px; font-size: 0.875rem; font-weight: 600; margin-bottom: 15px; }
+        header p { color: var(--text-muted); font-size: 1.1rem; }
 
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), #8B5CF6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        }
+        .container { width: 100%; max-width: 800px; background: var(--card-bg); border-radius: 16px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); padding: 40px; margin-bottom: 30px; }
 
-        .version {
-            display: inline-block;
-            background-color: #E0E7FF;
-            color: var(--primary);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-        }
-
-        header p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
-        }
-
-        /* --- CONTAINERS --- */
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-            padding: 40px;
-            margin-bottom: 30px;
-        }
-
-        /* --- DROP ZONE --- */
         #drop-zone {
-            width: 100%;
-            height: 250px;
-            border: 2px dashed #CBD5E1;
-            border-radius: 12px;
-            background-color: #F8FAFC;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            width: 100%; height: 250px; border: 2px dashed #CBD5E1; border-radius: 12px; background-color: #F8FAFC;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s ease;
         }
+        #drop-zone:hover, #drop-zone.dragover { border-color: var(--primary); background-color: #EEF2FF; }
+        .upload-icon { width: 64px; height: 64px; fill: #94A3B8; margin-bottom: 15px; }
+        #drop-zone:hover .upload-icon { fill: var(--primary); }
+        #drop-zone p { font-size: 1.1rem; color: var(--text-muted); text-align: center; line-height: 1.5; pointer-events: none; }
+        #drop-zone strong { color: var(--primary); }
+        #file-input { display: none; }
 
-        #drop-zone:hover, #drop-zone.dragover {
-            border-color: var(--primary);
-            background-color: #EEF2FF;
-        }
-
-        .upload-icon {
-            width: 64px;
-            height: 64px;
-            fill: #94A3B8;
-            margin-bottom: 15px;
-            transition: fill 0.3s ease;
-        }
-
-        #drop-zone:hover .upload-icon, #drop-zone.dragover .upload-icon {
-            fill: var(--primary);
-        }
-
-        #drop-zone p {
-            font-size: 1.1rem;
-            color: var(--text-muted);
-            pointer-events: none;
-            text-align: center;
-            line-height: 1.5;
-        }
-
-        #drop-zone strong {
-            color: var(--primary);
-        }
-
-        #file-input {
-            display: none;
-        }
-
-        /* --- STATUS --- */
-        #status {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            font-weight: 600;
-            text-align: center;
-            display: none;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
+        #status { margin-top: 20px; padding: 15px; border-radius: 8px; font-weight: 600; text-align: center; display: none; }
         .status-processing { background-color: #DBEAFE; color: #1E40AF; }
         .status-success { background-color: #D1FAE5; color: #065F46; }
         .status-error { background-color: #FEE2E2; color: #991B1B; }
 
-        /* --- HISTORY & STATS SECTION --- */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 30px;
-            width: 100%;
-            max-width: 800px;
-        }
-
-        .dashboard-card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-            padding: 30px;
-        }
-
-        .dashboard-card h2 {
-            font-size: 1.25rem;
-            color: var(--text-main);
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        /* --- TABLE --- */
-        .table-container {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th {
-            background-color: #F9FAFB;
-            padding: 12px 15px;
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        td {
-            padding: 15px;
-            font-size: 0.95rem;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-main);
-        }
-
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background-color: #F9FAFB; }
-
-        .empty-history {
-            text-align: center;
-            color: var(--text-muted);
-            font-style: italic;
-            padding: 20px;
-        }
-
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 30px; width: 100%; max-width: 800px; }
+        .dashboard-card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); padding: 30px; }
+        .dashboard-card h2 { font-size: 1.25rem; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { background-color: #F9FAFB; padding: 12px 15px; font-size: 0.875rem; color: var(--text-muted); border-bottom: 1px solid var(--border-color); }
+        td { padding: 15px; font-size: 0.95rem; border-bottom: 1px solid var(--border-color); }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="version">v1.2.1</div>
+        <div class="version">v1.3.0 - Moteur Corrigé</div>
         <h1>Mise en conformité Excel</h1>
-        <p>Générez des fichiers contrôlés avec styles et validations automatisés.</p>
+        <p>Générez des fichiers contrôlés avec styles, validations et bordures d'erreur automatisés.</p>
     </header>
 
     <main class="container">
@@ -231,29 +77,20 @@
             <p><strong>Cliquez pour parcourir</strong><br>ou glissez-déposez un fichier .xlsx ici</p>
         </div>
         <input type="file" id="file-input" accept=".xlsx" />
-
         <div id="status"></div>
     </main>
 
     <div class="dashboard-grid">
         <div class="dashboard-card">
-            <h2>📈 Statistiques d'utilisation (7 derniers jours)</h2>
+            <h2>📈 Fichiers traités (7 derniers jours)</h2>
             <canvas id="usageChart" height="100"></canvas>
         </div>
-
         <div class="dashboard-card">
-            <h2>🕒 Historique des traitements</h2>
-            <div class="table-container">
+            <h2>🕒 Historique</h2>
+            <div style="overflow-x: auto;">
                 <table>
-                    <thead>
-                        <tr>
-                            <th>Date & Heure</th>
-                            <th>Fichier d'origine</th>
-                            <th>Fichier généré</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-body">
-                    </tbody>
+                    <thead><tr><th>Date & Heure</th><th>Fichier d'origine</th><th>Statut</th></tr></thead>
+                    <tbody id="history-body"></tbody>
                 </table>
             </div>
         </div>
@@ -265,97 +102,50 @@
         const statusDiv = document.getElementById('status');
         let usageChartInstance = null;
 
-        // --- GESTION DE L'HISTORIQUE ET STATS ---
-        function getHistory() {
-            return JSON.parse(localStorage.getItem('excel_processor_history')) || [];
-        }
-
-        function saveToHistory(originalName, newName) {
+        // --- DASHBOARD & HISTORY ---
+        function getHistory() { return JSON.parse(localStorage.getItem('excel_history')) || []; }
+        function saveToHistory(originalName) {
             const history = getHistory();
             const now = new Date();
-            
             history.unshift({
-                dateObj: now.toISOString(),
                 dateStr: now.toLocaleDateString('fr-FR'),
                 timeStr: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-                original: originalName,
-                generated: newName
+                original: originalName
             });
-
             if(history.length > 50) history.pop();
-            localStorage.setItem('excel_processor_history', JSON.stringify(history));
+            localStorage.setItem('excel_history', JSON.stringify(history));
             updateDashboard();
         }
 
         function updateDashboard() {
             const history = getHistory();
             const tbody = document.getElementById('history-body');
+            tbody.innerHTML = history.length === 0 
+                ? `<tr><td colspan="3" style="text-align:center; color:#6B7280;">Aucun fichier traité.</td></tr>`
+                : history.slice(0, 10).map(item => `<tr><td><strong>${item.dateStr}</strong> à ${item.timeStr}</td><td>${item.original}</td><td style="color:#10B981; font-weight:bold;">Succès</td></tr>`).join('');
             
-            if (history.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="empty-history">Aucun fichier traité pour le moment.</td></tr>`;
-            } else {
-                tbody.innerHTML = history.slice(0, 10).map(item => `
-                    <tr>
-                        <td><strong>${item.dateStr}</strong> à ${item.timeStr}</td>
-                        <td>${item.original}</td>
-                        <td><span style="color: var(--success); font-weight: 500;">${item.generated}</span></td>
-                    </tr>
-                `).join('');
-            }
-            updateChart(history);
-        }
-
-        function updateChart(history) {
             const ctx = document.getElementById('usageChart').getContext('2d');
             const stats = {};
             for(let i=6; i>=0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
+                let d = new Date(); d.setDate(d.getDate() - i);
                 stats[d.toLocaleDateString('fr-FR')] = 0;
             }
-
-            history.forEach(item => {
-                if(stats[item.dateStr] !== undefined) stats[item.dateStr]++;
-            });
-
-            const labels = Object.keys(stats);
-            const data = Object.values(stats);
-
+            history.forEach(item => { if(stats[item.dateStr] !== undefined) stats[item.dateStr]++; });
             if (usageChartInstance) usageChartInstance.destroy();
-
             usageChartInstance = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Fichiers traités',
-                        data: data,
-                        backgroundColor: '#8B5CF6',
-                        borderRadius: 6,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-                    plugins: { legend: { display: false } }
-                }
+                data: { labels: Object.keys(stats), datasets: [{ label: 'Fichiers', data: Object.values(stats), backgroundColor: '#4F46E5', borderRadius: 4 }] },
+                options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
             });
         }
-
         updateDashboard();
 
-        // --- GESTION DES ÉVÉNEMENTS DRAG & DROP ---
+        // --- EVENTS ---
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) traiterFichier(e.dataTransfer.files[0]);
-        });
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) traiterFichier(e.target.files[0]);
-        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files.length) traiterFichier(e.dataTransfer.files[0]); });
+        fileInput.addEventListener('change', (e) => { if (e.target.files.length) traiterFichier(e.target.files[0]); });
 
         function getCellLength(cell) {
             if (!cell || cell.value === null || cell.value === undefined) return 0;
@@ -363,19 +153,15 @@
             if (typeof val === 'object') {
                 if (val.richText) return val.richText.map(rt => rt.text).join('').length;
                 if (val.result !== undefined) return val.result === null ? 0 : String(val.result).length;
-                if (val.text) return String(val.text).length; // Gestion des hyperliens
+                if (val.text) return String(val.text).length;
                 return 0;
             }
             return String(val).length;
         }
 
-        // --- FONCTION PRINCIPALE DE TRAITEMENT EXCEL ---
+        // --- MOTEUR EXCEL ---
         async function traiterFichier(file) {
-            if (!file.name.endsWith('.xlsx')) {
-                afficherStatut("Erreur : Veuillez fournir un fichier .xlsx valide.", 'error');
-                return;
-            }
-
+            if (!file.name.endsWith('.xlsx')) return afficherStatut("Erreur : Fichier .xlsx invalide.", 'error');
             afficherStatut("Analyse et ajout des règles en cours...", 'processing');
 
             try {
@@ -386,32 +172,29 @@
                 let worksheet = workbook.worksheets[0];
                 if (!worksheet) worksheet = workbook.addWorksheet('Feuille 1');
 
-                const plageA = 'A1:A10000';
-                const plageB = 'B1:B10000';
-                const plageC = 'C1:C10000';
-
-                // 1. STYLE DE MISE EN FORME CONDITIONNELLE (CF)
-                // CORRECTION : On retire la propriété "border" qui fait planter les couleurs dans Excel
+                // 1. STYLE SANS BORDURES POUR LA MISE EN FORME CONDITIONNELLE
+                // C'est ce qui causait le bug du fond rose sur tout le document !
                 const getErrorStyleCF = (bgColorHex) => ({
                     font: { bold: true },
                     fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: bgColorHex } }
                 });
 
-                // 2. STYLE STATIQUE (Pour l'affichage immédiat et les bordures)
-                // CORRECTION : On fusionne les styles existants avec Object.assign pour ne pas écraser le format d'origine
+                // 2. STYLE AVEC BORDURES ROUGES APPLIQUÉ EN DUR
                 const applyStaticErrorStyle = (cell, bgColorHex) => {
                     cell.font = Object.assign({}, cell.font || {}, { bold: true });
+                    // Ajout d'une bordure moyenne rouge
                     cell.border = Object.assign({}, cell.border || {}, {
                         top: { style: 'medium', color: { argb: 'FFFF0000' } },
                         bottom: { style: 'medium', color: { argb: 'FFFF0000' } },
                         left: { style: 'medium', color: { argb: 'FFFF0000' } },
                         right: { style: 'medium', color: { argb: 'FFFF0000' } }
                     });
+                    // On utilise fgColor pour colorer le fond de la cellule statique
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColorHex } };
                 };
 
-                // Application du style statique
-                worksheet.eachRow((row, rowNumber) => {
+                // Application des styles statiques sur les données existantes
+                worksheet.eachRow((row) => {
                     const cellA = row.getCell(1);
                     if (getCellLength(cellA) > 80) applyStaticErrorStyle(cellA, 'FF87CEEB');
 
@@ -422,52 +205,44 @@
                     if (getCellLength(cellC) > 80) applyStaticErrorStyle(cellC, 'FFFFC0CB');
                 });
 
-                // Ajout des règles conditionnelles sans bordures
-                worksheet.addConditionalFormatting({ ref: plageA, rules: [{ type: 'expression', formulae: ['LEN(A1)>80'], style: getErrorStyleCF('FF87CEEB') }] });
-                worksheet.addConditionalFormatting({ ref: plageB, rules: [{ type: 'expression', formulae: ['LEN(B1)>40'], style: getErrorStyleCF('FFFFFFE0') }] });
-                worksheet.addConditionalFormatting({ ref: plageC, rules: [{ type: 'expression', formulae: ['LEN(C1)>80'], style: getErrorStyleCF('FFFFC0CB') }] });
+                // Ajout des règles conditionnelles (pour les futures frappes de l'utilisateur)
+                worksheet.addConditionalFormatting({ ref: 'A1:A10000', rules: [{ type: 'expression', formulae: ['LEN(A1)>80'], style: getErrorStyleCF('FF87CEEB') }] });
+                worksheet.addConditionalFormatting({ ref: 'B1:B10000', rules: [{ type: 'expression', formulae: ['LEN(B1)>40'], style: getErrorStyleCF('FFFFFFE0') }] });
+                worksheet.addConditionalFormatting({ ref: 'C1:C10000', rules: [{ type: 'expression', formulae: ['LEN(C1)>80'], style: getErrorStyleCF('FFFFC0CB') }] });
 
                 // Validation des données
-                const configValidation = (maxLen, colName) => ({
+                const configVal = (maxLen, colName) => ({
                     type: 'textLength', operator: 'lessThanOrEqual', showErrorMessage: true, allowBlank: true,
                     formulae: [maxLen], errorStyle: 'stop', errorTitle: 'Limite dépassée',
-                    error: `Le contenu de la colonne ${colName} ne doit pas dépasser ${maxLen} caractères.`,
-                    promptTitle: `Info Colonne ${colName}`, prompt: `Maximum ${maxLen} caractères.`
+                    error: `Le contenu de la colonne ${colName} ne doit pas dépasser ${maxLen} caractères.`, promptTitle: `Info Colonne ${colName}`, prompt: `Maximum ${maxLen} caractères.`
                 });
+                worksheet.dataValidations.add('A1:A10000', configVal(80, 'A'));
+                worksheet.dataValidations.add('B1:B10000', configVal(40, 'B'));
+                worksheet.dataValidations.add('C1:C10000', configVal(80, 'C'));
 
-                worksheet.dataValidations.add(plageA, configValidation(80, 'A'));
-                worksheet.dataValidations.add(plageB, configValidation(40, 'B'));
-                worksheet.dataValidations.add(plageC, configValidation(80, 'C'));
-
-                // Génération du fichier
+                // Génération et téléchargement
                 const buffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 
-                const newFileName = "Controle_" + file.name;
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = newFileName;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
+                a.href = url; a.download = "Controle_" + file.name;
+                document.body.appendChild(a); a.click();
+                window.URL.revokeObjectURL(url); a.remove();
 
-                afficherStatut("Succès ! Le fichier a été régénéré et téléchargé.", 'success');
-                
-                saveToHistory(file.name, newFileName);
+                afficherStatut("Succès ! Fichier généré avec les bonnes bordures.", 'success');
+                saveToHistory(file.name);
                 fileInput.value = '';
 
             } catch (error) {
                 console.error(error);
-                afficherStatut("Une erreur est survenue lors du traitement du fichier.", 'error');
+                afficherStatut("Erreur lors du traitement.", 'error');
             }
         }
 
-        function afficherStatut(message, type) {
-            statusDiv.textContent = message;
-            statusDiv.className = '';
-            statusDiv.classList.add(`status-${type}`);
+        function afficherStatut(msg, type) {
+            statusDiv.textContent = msg;
+            statusDiv.className = `status-${type}`;
             statusDiv.style.display = 'block';
         }
     </script>
